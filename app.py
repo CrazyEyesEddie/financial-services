@@ -536,11 +536,68 @@ def outputs():
             )
         else:
             return redirect(
-                url_for("invoice", project_id=project_id, start=start, end=end)
+                url_for("qbcc_invoice", project_id=project_id, start=start, end=end)
             )
 
     projects = Project.query.filter_by(active=True).order_by(Project.name).all()
     return render_template("outputs.html", projects=projects)
+
+
+# ---------------------------------------------------------------------------
+# Routes – QBCC Hourly Invoice
+# ---------------------------------------------------------------------------
+
+
+@app.route("/qbcc-invoice")
+@login_required
+def qbcc_invoice():
+    project_id = request.args.get("project_id", type=int)
+    start_str = request.args.get("start")
+    end_str = request.args.get("end")
+
+    try:
+        start = date.fromisoformat(start_str) if start_str else date.today() - timedelta(days=30)
+    except (ValueError, TypeError):
+        start = date.today() - timedelta(days=30)
+
+    try:
+        end = date.fromisoformat(end_str) if end_str else date.today()
+    except (ValueError, TypeError):
+        end = date.today()
+
+    projects = (
+        Project.query.filter_by(pipeline="QBCC", active=True)
+        .order_by(Project.name)
+        .all()
+    )
+    selected_project = Project.query.get(project_id) if project_id else None
+
+    entries = []
+    total_hours = 0.0
+
+    if selected_project:
+        entries = (
+            TimeEntry.query.filter(
+                TimeEntry.project_id == selected_project.id,
+                TimeEntry.date >= start,
+                TimeEntry.date <= end,
+                TimeEntry.end_time.isnot(None),
+            )
+            .order_by(TimeEntry.date, TimeEntry.start_time)
+            .all()
+        )
+        total_hours = round(sum(e.duration_hours for e in entries), 6)
+
+    return render_template(
+        "qbcc_invoice.html",
+        projects=projects,
+        selected_project=selected_project,
+        entries=entries,
+        total_hours=total_hours,
+        hourly_rate=350,
+        start=start,
+        end=end,
+    )
 
 
 # ---------------------------------------------------------------------------

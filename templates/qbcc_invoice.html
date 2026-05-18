@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}QBCC Invoice{% endblock %}
+{% block content %}
+<h2 class="mb-4">QBCC — Hourly Invoice</h2>
+
+<!-- Selector -->
+<div class="card bg-dark border-secondary mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label for="project_id" class="form-label">Project</label>
+                <select class="form-select bg-dark text-light border-secondary" id="project_id" name="project_id" required>
+                    <option value="">— Select a QBCC project —</option>
+                    {% for project in projects %}
+                    <option value="{{ project.id }}" {% if selected_project and project.id == selected_project.id %}selected{% endif %}>{{ project.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col">
+                <label for="start" class="form-label">From</label>
+                <input type="date" class="form-control bg-dark text-light border-secondary" id="start" name="start" value="{{ start.isoformat() }}">
+            </div>
+            <div class="col">
+                <label for="end" class="form-label">To</label>
+                <input type="date" class="form-control bg-dark text-light border-secondary" id="end" name="end" value="{{ end.isoformat() }}">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">Generate Invoice</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if selected_project and entries %}
+<div class="card bg-dark border-light">
+    <div class="card-body p-0">
+        <div class="p-3 border-bottom border-secondary">
+            <h4 class="mb-0">{{ selected_project.name }}</h4>
+            <small class="text-muted">{{ start.strftime('%b %d, %Y') }} – {{ end.strftime('%b %d, %Y') }}</small>
+        </div>
+        <table class="table table-dark table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th class="text-end">Hours</th>
+                    <th class="text-end">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in entries %}
+                <tr>
+                    <td>{{ entry.date.strftime('%b %d, %Y') }}</td>
+                    <td>{{ entry.description or '—' }}</td>
+                    <td class="text-end">{{ "%.2f"|format(entry.duration_hours) }}</td>
+                    <td class="text-end">${{ "%.2f"|format(entry.duration_hours * hourly_rate) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Totals -->
+        <div class="p-3 border-top border-secondary">
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="text-muted mb-0 small">Rate: <strong>${{ hourly_rate }}/hr</strong></p>
+                    <p class="text-muted mb-0 small">No minimum billable unit — charged to exact time worked.</p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <span class="text-muted">Total Hours: </span>
+                    <span class="fs-4 fw-bold">{{ "%.2f"|format(total_hours) }}</span>
+                    <div class="text-muted small">({{ "%.6f"|format(total_hours) }} precise)</div>
+                    <div class="fs-3 text-success fw-bold mt-1">${{ "%.2f"|format(total_hours * hourly_rate) }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex gap-2 mt-3 mb-5">
+    <button class="btn btn-outline-info" onclick="window.print()">🖨️ Print / PDF</button>
+</div>
+
+{% elif selected_project and not entries %}
+<div class="card bg-dark border-secondary">
+    <div class="card-body text-center py-5">
+        <p class="text-muted mb-0">No entries found for this project in the selected date range.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<style>
+@media print {
+    .navbar, .container > .card:first-of-type, .d-flex.gap-2, .btn, .alert {
+        display: none !important;
+    }
+    .card {
+        border: none !important;
+        background: white !important;
+        color: black !important;
+    }
+    .table-dark {
+        background: white !important;
+        color: black !important;
+        --bs-table-bg: white !important;
+        --bs-table-color: black !important;
+    }
+    .text-muted {
+        color: #666 !important;
+    }
+    body {
+        background: white !important;
+    }
+}
+</style>
+{% endblock %}
