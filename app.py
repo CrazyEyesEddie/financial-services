@@ -111,16 +111,49 @@ def dashboard():
         .all()
     )
 
-    total_hours = sum(e.duration_hours for e in entries if e.end_time)
-    rounded = round_quarter_day(total_hours)
+    projects = Project.query.filter_by(active=True).order_by(Project.name).all()
 
     return render_template(
         "dashboard.html",
         entries=entries,
-        total_hours=total_hours,
-        rounded_days=rounded,
         today=today,
+        projects=projects,
     )
+
+
+@app.route("/dashboard/add", methods=["POST"])
+@login_required
+def dashboard_add_entry():
+    project_id = request.form.get("project_id")
+    description = request.form.get("description", "").strip()
+    entry_date = request.form.get("date")
+    start_str = request.form.get("start_time")
+    end_str = request.form.get("end_time")
+
+    project = Project.query.get(project_id)
+    if not project:
+        flash("Select a project", "warning")
+        return redirect(url_for("dashboard"))
+
+    try:
+        date_obj = date.fromisoformat(entry_date) if entry_date else date.today()
+        start_time = datetime.fromisoformat(f"{date_obj.isoformat()}T{start_str}") if start_str else datetime.now()
+        end_time = datetime.fromisoformat(f"{date_obj.isoformat()}T{end_str}") if end_str else None
+    except (ValueError, TypeError):
+        flash("Invalid date or time format", "danger")
+        return redirect(url_for("dashboard"))
+
+    entry = TimeEntry(
+        project_id=project.id,
+        description=description,
+        start_time=start_time,
+        end_time=end_time,
+        date=date_obj,
+    )
+    db.session.add(entry)
+    db.session.commit()
+    flash("Entry added", "success")
+    return redirect(url_for("dashboard"))
 
 
 # ---------------------------------------------------------------------------

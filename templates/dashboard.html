@@ -3,7 +3,10 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>{{ today.strftime('%A, %b %d, %Y') }}</h2>
-    <a href="{{ url_for('track') }}" class="btn btn-primary">Track Time</a>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#addEntryForm">+ Add Entry</button>
+        <a href="{{ url_for('track') }}" class="btn btn-primary">Track Time</a>
+    </div>
 </div>
 
 {% set ns = namespace(has_running=false) %}
@@ -19,30 +22,40 @@
 </div>
 {% endif %}
 
-<!-- Daily Summary Card -->
-<div class="card bg-dark border-secondary mb-4">
-    <div class="card-body">
-        <div class="row text-center">
-            <div class="col">
-                <h5 class="text-muted">Total Hours</h5>
-                <span class="fs-2">{{ "%.2f"|format(total_hours) }}</span>
-            </div>
-            <div class="col">
-                <h5 class="text-muted">Rounded Days</h5>
-                {% if rounded_days == 0.25 %}
-                <span class="badge rounded-badge-025 fs-3">{{ rounded_days }}</span>
-                {% elif rounded_days == 0.5 %}
-                <span class="badge rounded-badge-05 fs-3">{{ rounded_days }}</span>
-                {% elif rounded_days == 1.0 %}
-                <span class="badge rounded-badge-10 fs-3">{{ rounded_days }}</span>
-                {% else %}
-                <span class="fs-2">—</span>
-                {% endif %}
-            </div>
-            <div class="col">
-                <h5 class="text-muted">Entries</h5>
-                <span class="fs-2">{{ entries|length }}</span>
-            </div>
+<!-- Quick Add Entry Form -->
+<div class="collapse {% if show_add_form %}show{% endif %}" id="addEntryForm">
+    <div class="card bg-dark border-secondary mb-4">
+        <div class="card-body">
+            <h5 class="card-title mb-3">Add Entry</h5>
+            <form method="POST" action="{{ url_for('dashboard_add_entry') }}">
+                <div class="row g-2 mb-3">
+                    <div class="col-md-4">
+                        <label for="add_project_id" class="form-label small">Project</label>
+                        <select class="form-select form-select-sm bg-dark text-light border-secondary" id="add_project_id" name="project_id" required>
+                            <option value="">— Select —</option>
+                            {% set adb = projects | selectattr("pipeline", "equalto", "ADB") | list %}
+                            {% set qbcc = projects | selectattr("pipeline", "equalto", "QBCC") | list %}
+                            {% if adb %}<optgroup label="ADB">{% for p in adb %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</optgroup>{% endif %}
+                            {% if qbcc %}<optgroup label="QBCC">{% for p in qbcc %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</optgroup>{% endif %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="add_date" class="form-label small">Date</label>
+                        <input type="date" class="form-control form-control-sm bg-dark text-light border-secondary" id="add_date" name="date" value="{{ today.isoformat() }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">&nbsp;</label>
+                        <div class="d-flex gap-2">
+                            <input type="time" class="form-control form-control-sm bg-dark text-light border-secondary" name="start_time" placeholder="Start" required>
+                            <input type="time" class="form-control form-control-sm bg-dark text-light border-secondary" name="end_time" placeholder="End" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <textarea class="form-control form-control-sm bg-dark text-light border-secondary" name="description" rows="1" placeholder="What was done?"></textarea>
+                </div>
+                <button type="submit" class="btn btn-sm btn-success">Save Entry</button>
+            </form>
         </div>
     </div>
 </div>
@@ -99,7 +112,10 @@
 <div class="card bg-dark border-secondary">
     <div class="card-body text-center py-5">
         <p class="text-muted mb-3">No entries recorded today.</p>
-        <a href="{{ url_for('track') }}" class="btn btn-primary">Start Tracking</a>
+        <div class="d-flex gap-2 justify-content-center">
+            <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#addEntryForm">+ Add Entry</button>
+            <a href="{{ url_for('track') }}" class="btn btn-primary">Start Tracking</a>
+        </div>
     </div>
 </div>
 {% endif %}
