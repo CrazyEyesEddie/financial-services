@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}Invoice{% endblock %}
+{% block content %}
+<h2 class="mb-4">Invoice</h2>
+
+<!-- Selector -->
+<div class="card bg-dark border-secondary mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label for="project_id" class="form-label">Project</label>
+                <select class="form-select bg-dark text-light border-secondary" id="project_id" name="project_id" required>
+                    <option value="">— Select a project —</option>
+                    {% set adb_projects = projects | selectattr("pipeline", "equalto", "ADB") | list %}
+                    {% set qbcc_projects = projects | selectattr("pipeline", "equalto", "QBCC") | list %}
+                    {% if adb_projects %}
+                    <optgroup label="ADB">
+                        {% for p in adb_projects %}
+                        <option value="{{ p.id }}" {% if selected_project and p.id == selected_project.id %}selected{% endif %}>{{ p.name }}</option>
+                        {% endfor %}
+                    </optgroup>
+                    {% endif %}
+                    {% if qbcc_projects %}
+                    <optgroup label="QBCC">
+                        {% for p in qbcc_projects %}
+                        <option value="{{ p.id }}" {% if selected_project and p.id == selected_project.id %}selected{% endif %}>{{ p.name }}</option>
+                        {% endfor %}
+                    </optgroup>
+                    {% endif %}
+                </select>
+            </div>
+            <div class="col">
+                <label for="start" class="form-label">From</label>
+                <input type="date" class="form-control bg-dark text-light border-secondary" id="start" name="start" value="{{ start.isoformat() }}">
+            </div>
+            <div class="col">
+                <label for="end" class="form-label">To</label>
+                <input type="date" class="form-control bg-dark text-light border-secondary" id="end" name="end" value="{{ end.isoformat() }}">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">Generate Invoice</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if selected_project and daily_summaries %}
+<!-- Invoice -->
+<div class="card bg-dark border-light" id="invoice-print">
+    <div class="card-body p-4">
+        <!-- Header -->
+        <div class="text-center mb-4">
+            <h3>Invoice</h3>
+            <p class="text-muted mb-1">{{ selected_project.name }}</p>
+            <p class="text-muted">{{ start.strftime('%b %d, %Y') }} – {{ end.strftime('%b %d, %Y') }}</p>
+        </div>
+
+        <hr class="border-secondary">
+
+        <!-- Daily Breakdown -->
+        <table class="table table-dark table-borderless">
+            <thead>
+                <tr class="text-muted">
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th class="text-end">Hours</th>
+                    <th class="text-end">Rounded</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for summary in daily_summaries %}
+                <tr>
+                    <td colspan="4" class="pb-0 pt-3">
+                        <strong>{{ summary.date.strftime('%A, %b %d, %Y') }}</strong>
+                    </td>
+                </tr>
+                {% for entry in summary.entries %}
+                <tr>
+                    <td></td>
+                    <td class="text-muted">{{ entry.description or '—' }}</td>
+                    <td class="text-end text-muted">{{ "%.2f"|format(entry.duration_hours) }}</td>
+                    <td></td>
+                </tr>
+                {% endfor %}
+                <tr class="border-bottom border-secondary">
+                    <td></td>
+                    <td class="text-end"><em>Daily total</em></td>
+                    <td class="text-end">{{ "%.2f"|format(summary.total_hours) }}</td>
+                    <td class="text-end">
+                        {% if summary.rounded_days == 0.25 %}
+                        <span class="badge rounded-badge-025">{{ summary.rounded_days }}</span>
+                        {% elif summary.rounded_days == 0.5 %}
+                        <span class="badge rounded-badge-05">{{ summary.rounded_days }}</span>
+                        {% elif summary.rounded_days == 1.0 %}
+                        <span class="badge rounded-badge-10">{{ summary.rounded_days }}</span>
+                        {% else %}
+                        <span>—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Totals -->
+        <div class="row mt-3">
+            <div class="col-6">
+            </div>
+            <div class="col-6">
+                <table class="table table-dark table-borderless">
+                    <tr>
+                        <td class="text-end text-muted">Total Rounded Days</td>
+                        <td class="text-end fs-5"><strong>{{ "%.2f"|format(grand_total_days) }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="text-end text-muted">Rate per Day</td>
+                        <td class="text-end"><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-end" id="rate" value="600" style="width:120px;display:inline"></td>
+                    </tr>
+                    <tr>
+                        <td class="text-end"><strong>Total</strong></td>
+                        <td class="text-end fs-4" id="total-amount"><strong>—</strong></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <hr class="border-secondary">
+
+        <div class="text-center text-muted small">
+            <p class="mb-0">Rounding: 0–2h = 0.25 day · 2–4h = 0.5 day · 4h+ = 1.0 day</p>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex gap-2 mt-3 mb-5">
+    <button class="btn btn-outline-info" onclick="window.print()">🖨️ Print / PDF</button>
+    <button class="btn btn-outline-secondary" id="calc-total">Calculate Total</button>
+</div>
+{% elif selected_project and not daily_summaries %}
+<div class="card bg-dark border-secondary">
+    <div class="card-body text-center py-5">
+        <p class="text-muted mb-0">No entries found for this project in the selected date range.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+{% if selected_project and daily_summaries %}
+function calcTotal() {
+    const rate = parseFloat(document.getElementById('rate').value);
+    const days = {{ grand_total_days }};
+    if (isNaN(rate) || rate <= 0) {
+        document.getElementById('total-amount').innerHTML = '<span class="text-warning">Enter a rate</span>';
+    } else {
+        const total = (rate * days).toFixed(2);
+        document.getElementById('total-amount').textContent = '$' + total;
+    }
+}
+document.getElementById('calc-total').addEventListener('click', calcTotal);
+document.addEventListener('DOMContentLoaded', calcTotal);
+{% endif %}
+</script>
+
+<style>
+@media print {
+    .navbar, .container > .card:first-of-type, .d-flex.gap-2, footer, .alert {
+        display: none !important;
+    }
+    #invoice-print {
+        border: none !important;
+        background: white !important;
+        color: black !important;
+    }
+    #invoice-print .table-dark {
+        background: white !important;
+        color: black !important;
+        --bs-table-bg: white !important;
+        --bs-table-color: black !important;
+    }
+    #invoice-print .text-muted {
+        color: #666 !important;
+    }
+    #invoice-print .badge {
+        border: 1px solid #999;
+    }
+    body {
+        background: white !important;
+    }
+}
+</style>
+{% endblock %}

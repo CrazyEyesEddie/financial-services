@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Projects{% endblock %}
+{% block content %}
+<h2 class="mb-4">Projects</h2>
+
+<div class="d-flex gap-2 mb-3">
+    <a href="{{ url_for('projects', pipeline='ADB') }}" class="btn btn-sm {% if current_pipeline == 'ADB' %}btn-primary{% else %}btn-outline-secondary{% endif %}">ADB</a>
+    <a href="{{ url_for('projects', pipeline='QBCC') }}" class="btn btn-sm {% if current_pipeline == 'QBCC' %}btn-primary{% else %}btn-outline-secondary{% endif %}">QBCC</a>
+    <a href="{{ url_for('projects') }}" class="btn btn-sm btn-outline-secondary">All</a>
+</div>
+
+<!-- Add Project -->
+<div class="card bg-dark border-secondary mb-4">
+    <div class="card-body">
+        <form method="POST" class="row g-2">
+            <div class="col-md-6">
+                <input type="text" class="form-control bg-dark text-light border-secondary" name="name" placeholder="New project name" required>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select bg-dark text-light border-secondary" name="pipeline">
+                    <option value="ADB" {% if current_pipeline == 'ADB' %}selected{% endif %}>ADB</option>
+                    <option value="QBCC" {% if current_pipeline == 'QBCC' %}selected{% endif %}>QBCC</option>
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">Add Project</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Project List -->
+{% if projects %}
+<div class="table-responsive">
+    <table class="table table-dark table-hover">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Pipeline</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for project in projects %}
+            <tr>
+                <td>
+                    <form method="POST" action="{{ url_for('edit_project', project_id=project.id) }}" class="row g-1">
+                        <div class="col">
+                            <input type="text" class="form-control form-control-sm bg-dark text-light border-secondary" name="name" value="{{ project.name }}">
+                        </div>
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Rename</button>
+                        </div>
+                    </form>
+                </td>
+                <td>
+                    <form method="POST" action="{{ url_for('set_pipeline', project_id=project.id) }}" class="d-inline">
+                        <select name="pipeline" class="form-select form-select-sm bg-dark text-light border-secondary d-inline" style="width:90px" onchange="this.form.submit()">
+                            <option value="ADB" {% if project.pipeline == 'ADB' %}selected{% endif %}>ADB</option>
+                            <option value="QBCC" {% if project.pipeline == 'QBCC' %}selected{% endif %}>QBCC</option>
+                        </select>
+                    </form>
+                </td>
+                <td>
+                    {% if project.active %}
+                    <span class="badge bg-success">Active</span>
+                    {% else %}
+                    <span class="badge bg-secondary">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <form method="POST" action="{{ url_for('toggle_project', project_id=project.id) }}" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-warning">
+                            {% if project.active %}Deactivate{% else %}Activate{% endif %}
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card bg-dark border-secondary">
+    <div class="card-body text-center py-4">
+        <p class="text-muted mb-0">No projects{% if current_pipeline %} in {{ current_pipeline }}{% endif %}. Create one above.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

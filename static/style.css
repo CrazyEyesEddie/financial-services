@@ -1,0 +1,38 @@
+body {
+    min-height: 100vh;
+}
+
+.card {
+    border-radius: 0.5rem;
+}
+
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.table > :not(caption) > * > * {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.running-entry {
+    border-left: 4px solid #0d6efd;
+}
+
+.rounded-badge-025 {
+    background-color: #6f42c1;
+}
+
+.rounded-badge-05 {
+    background-color: #fd7e14;
+}
+
+.rounded-badge-10 {
+    background-color: #198754;
+}
+
+.timer-display {
+    font-size: 2.5rem;
+    font-weight: 300;
+    font-variant-numeric: tabular-nums;
+}

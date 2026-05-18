@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Track Time{% endblock %}
+{% block content %}
+<h2 class="mb-4">Track Time</h2>
+
+{% if running %}
+<!-- Running Timer -->
+<div class="card bg-dark border-info mb-4">
+    <div class="card-body text-center py-5">
+        <h5 class="text-muted mb-3">Currently Tracking</h5>
+        <h3>{{ running.project.name }}</h3>
+        <p class="text-muted">{{ running.description or 'No description' }}</p>
+        <div class="timer-display my-3" id="timer" data-start="{{ running.start_time.isoformat() }}">
+            {{ running.start_time.strftime('%H:%M:%S') }}
+        </div>
+        <p class="text-muted">Started at {{ running.start_time.strftime('%H:%M') }}</p>
+        <form method="POST" action="{{ url_for('track_stop') }}">
+            <button type="submit" class="btn btn-danger btn-lg">Stop Timer</button>
+        </form>
+    </div>
+</div>
+{% else %}
+<!-- Start Timer Form -->
+<div class="card bg-dark border-secondary">
+    <div class="card-body">
+        {% if projects %}
+        <form method="POST" action="{{ url_for('track_start') }}">
+            <div class="mb-3">
+                <label for="project_id" class="form-label">Project</label>
+                <select class="form-select bg-dark text-light border-secondary" id="project_id" name="project_id" required>
+                    <option value="">— Select a project —</option>
+                    {% set adb_projects = projects | selectattr("pipeline", "equalto", "ADB") | list %}
+                    {% set qbcc_projects = projects | selectattr("pipeline", "equalto", "QBCC") | list %}
+                    {% if adb_projects %}
+                    <optgroup label="ADB">
+                        {% for p in adb_projects %}
+                        <option value="{{ p.id }}">{{ p.name }}</option>
+                        {% endfor %}
+                    </optgroup>
+                    {% endif %}
+                    {% if qbcc_projects %}
+                    <optgroup label="QBCC">
+                        {% for p in qbcc_projects %}
+                        <option value="{{ p.id }}">{{ p.name }}</option>
+                        {% endfor %}
+                    </optgroup>
+                    {% endif %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="description" class="form-label">What are you working on?</label>
+                <textarea class="form-control bg-dark text-light border-secondary" id="description" name="description" rows="2" placeholder="e.g., Drafting trade law review report..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-success btn-lg w-100">Start Timer</button>
+        </form>
+        {% else %}
+        <div class="text-center py-4">
+            <p class="text-muted">No projects yet. Create one first.</p>
+            <a href="{{ url_for('projects') }}" class="btn btn-primary">Manage Projects</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if running %}
+<script>
+(function() {
+    const startStr = document.getElementById('timer').dataset.start;
+    const start = new Date(startStr);
+    const display = document.getElementById('timer');
+
+    function update() {
+        const now = new Date();
+        const diff = Math.floor((now - start) / 1000);
+        const h = String(Math.floor(diff / 3600)).padStart(2, '0');
+        const m = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
+        const s = String(diff % 60).padStart(2, '0');
+        display.textContent = h + ':' + m + ':' + s;
+    }
+
+    update();
+    setInterval(update, 1000);
+})();
+</script>
+{% endif %}
+{% endblock %}

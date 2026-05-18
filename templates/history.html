@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}History{% endblock %}
+{% block content %}
+<h2 class="mb-4">History</h2>
+
+<!-- Date Range Filter -->
+<div class="card bg-dark border-secondary mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col">
+                <label for="start" class="form-label">From</label>
+                <input type="date" class="form-control bg-dark text-light border-secondary" id="start" name="start" value="{{ start.isoformat() }}">
+            </div>
+            <div class="col">
+                <label for="end" class="form-label">To</label>
+                <input type="date" class="form-control bg-dark text-light border-secondary" id="end" name="end" value="{{ end.isoformat() }}">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">Filter</button>
+            </div>
+            <div class="col-auto">
+                <a href="{{ url_for('export_csv', start=start.isoformat(), end=end.isoformat()) }}" class="btn btn-outline-info">Export CSV</a>
+            </div>
+            <div class="col-auto">
+                <a href="{{ url_for('export_json', start=start.isoformat(), end=end.isoformat()) }}" class="btn btn-outline-info">Export JSON</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Daily Summaries -->
+{% if daily_summaries %}
+    {% for summary in daily_summaries %}
+    <div class="card bg-dark border-secondary mb-3">
+        <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center">
+            <span>{{ summary.date.strftime('%A, %b %d, %Y') }}</span>
+            <span>
+                <span class="text-muted">{{ "%.2f"|format(summary.total_hours) }}h</span>
+                {% if summary.rounded_days == 0.25 %}
+                <span class="badge rounded-badge-025 ms-2">{{ summary.rounded_days }} day</span>
+                {% elif summary.rounded_days == 0.5 %}
+                <span class="badge rounded-badge-05 ms-2">{{ summary.rounded_days }} day</span>
+                {% elif summary.rounded_days == 1.0 %}
+                <span class="badge rounded-badge-10 ms-2">{{ summary.rounded_days }} day</span>
+                {% else %}
+                <span class="badge bg-secondary ms-2">0 days</span>
+                {% endif %}
+            </span>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-dark table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Project</th>
+                        <th>Pipeline</th>
+                        <th>Description</th>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th>Hours</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in summary.entries %}
+                    <tr>
+                        <td>{{ entry.project.name }}</td>
+                        <td><span class="badge bg-secondary">{{ entry.project.pipeline }}</span></td>
+                        <td>{{ entry.description or '—' }}</td>
+                        <td>{{ entry.start_time.strftime('%H:%M') }}</td>
+                        <td>{{ entry.end_time.strftime('%H:%M') if entry.end_time else '—' }}</td>
+                        <td>{{ "%.2f"|format(entry.duration_hours) if entry.end_time else '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+<div class="card bg-dark border-secondary">
+    <div class="card-body text-center py-5">
+        <p class="text-muted mb-0">No entries in this date range.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
