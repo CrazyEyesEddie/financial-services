@@ -515,6 +515,35 @@ def invoice():
 
 
 # ---------------------------------------------------------------------------
+# Routes – Unified Outputs
+# ---------------------------------------------------------------------------
+
+
+@app.route("/outputs", methods=["GET", "POST"])
+@login_required
+def outputs():
+    if request.method == "POST":
+        project_id = request.form.get("project_id")
+        start = request.form.get("start")
+        end = request.form.get("end")
+        project = Project.query.get(project_id)
+        if not project:
+            flash("Select a project", "warning")
+            return redirect(url_for("outputs"))
+        if project.pipeline == "ADB":
+            return redirect(
+                url_for("adb_report", project_id=project_id, start=start, end=end)
+            )
+        else:
+            return redirect(
+                url_for("invoice", project_id=project_id, start=start, end=end)
+            )
+
+    projects = Project.query.filter_by(active=True).order_by(Project.name).all()
+    return render_template("outputs.html", projects=projects)
+
+
+# ---------------------------------------------------------------------------
 # Routes – ADB Rolling Accrual Report
 # ---------------------------------------------------------------------------
 
