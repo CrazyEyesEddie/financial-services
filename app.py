@@ -134,7 +134,7 @@ def login():
         if user and bcrypt.checkpw(password.encode(), user.password_hash.encode()):
             session["logged_in"] = True
             flash("Welcome back!", "success")
-            return redirect(url_for("track"))
+            return redirect(url_for("home"))
         flash("Invalid password", "danger")
     return render_template("login.html")
 
@@ -152,6 +152,12 @@ def logout():
 
 
 @app.route("/")
+@login_required
+def home():
+    return render_template("home.html")
+
+
+@app.route("/dashboard")
 @login_required
 def dashboard():
     return redirect(url_for("track"))
