@@ -1,14 +1,16 @@
 {% extends "base.html" %}
 {% block title %}Outputs{% endblock %}
 {% block content %}
-<h2 class="mb-4">Outputs</h2>
+<h2 class="mb-2">3. Output</h2>
+<p class="text-muted small mb-4">Generate an invoice or report for a project over a date range. ADB projects produce a rolling day-rate report. QBCC projects produce an hourly or flat-rate invoice.</p>
 
 <div class="card bg-dark border-secondary">
     <div class="card-body">
         <p class="text-muted mb-3">Select a project and date range to generate the appropriate output:</p>
         <ul class="text-muted small mb-4">
             <li><strong>ADB</strong> projects → Rolling accrual report (hours roll across days, billed in day fractions)</li>
-            <li><strong>QBCC</strong> projects → Hourly invoice (exact hours, $350/hr, no minimum unit)</li>
+            <li><strong>QBCC</strong> projects → Hourly or flat-rate invoice</li>
+            <li><strong>AMEB</strong> projects → Manual timetable entry, generates invoice</li>
         </ul>
         <form method="POST" class="row g-2 align-items-end">
             <div class="col-md-4">
@@ -17,6 +19,7 @@
                     <option value="">— Select a project —</option>
                     {% set adb_projects = projects | selectattr("pipeline", "equalto", "ADB") | list %}
                     {% set qbcc_projects = projects | selectattr("pipeline", "equalto", "QBCC") | list %}
+                    {% set ameb_projects = projects | selectattr("pipeline", "equalto", "AMEB") | list %}
                     {% if adb_projects %}
                     <optgroup label="ADB — Rolling Report">
                         {% for p in adb_projects %}
@@ -27,6 +30,13 @@
                     {% if qbcc_projects %}
                     <optgroup label="QBCC — Invoice">
                         {% for p in qbcc_projects %}
+                        <option value="{{ p.id }}">{{ p.name }}{% if p.billing_type == 'flat' %} (flat){% endif %}</option>
+                        {% endfor %}
+                    </optgroup>
+                    {% endif %}
+                    {% if ameb_projects %}
+                    <optgroup label="AMEB — Timetable Invoice">
+                        {% for p in ameb_projects %}
                         <option value="{{ p.id }}">{{ p.name }}</option>
                         {% endfor %}
                     </optgroup>

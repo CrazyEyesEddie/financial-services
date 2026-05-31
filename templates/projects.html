@@ -1,11 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Projects{% endblock %}
 {% block content %}
-<h2 class="mb-4">Projects</h2>
+<h2 class="mb-2">1. Set Project</h2>
+<p class="text-muted small mb-4">Create the projects you bill for — choose ADB (day-rate), QBCC (hourly or flat), or AMEB (manual timetable entry). Each project belongs to one pipeline.</p>
 
 <div class="d-flex gap-2 mb-3">
     <a href="{{ url_for('projects', pipeline='ADB') }}" class="btn btn-sm {% if current_pipeline == 'ADB' %}btn-primary{% else %}btn-outline-secondary{% endif %}">ADB</a>
     <a href="{{ url_for('projects', pipeline='QBCC') }}" class="btn btn-sm {% if current_pipeline == 'QBCC' %}btn-primary{% else %}btn-outline-secondary{% endif %}">QBCC</a>
+    <a href="{{ url_for('projects', pipeline='AMEB') }}" class="btn btn-sm {% if current_pipeline == 'AMEB' %}btn-primary{% else %}btn-outline-secondary{% endif %}">AMEB</a>
     <a href="{{ url_for('projects') }}" class="btn btn-sm btn-outline-secondary">All</a>
 </div>
 
@@ -20,6 +22,7 @@
                 <select class="form-select bg-dark text-light border-secondary" name="pipeline">
                     <option value="ADB" {% if current_pipeline == 'ADB' %}selected{% endif %}>ADB</option>
                     <option value="QBCC" {% if current_pipeline == 'QBCC' %}selected{% endif %}>QBCC</option>
+                    <option value="AMEB" {% if current_pipeline == 'AMEB' %}selected{% endif %}>AMEB</option>
                 </select>
             </div>
             <div class="col-auto">
@@ -37,6 +40,7 @@
             <tr>
                 <th>Name</th>
                 <th>Pipeline</th>
+                <th>Billing</th>
                 <th>Status</th>
                 <th>Actions</th>
             </tr>
@@ -59,8 +63,32 @@
                         <select name="pipeline" class="form-select form-select-sm bg-dark text-light border-secondary d-inline" style="width:90px" onchange="this.form.submit()">
                             <option value="ADB" {% if project.pipeline == 'ADB' %}selected{% endif %}>ADB</option>
                             <option value="QBCC" {% if project.pipeline == 'QBCC' %}selected{% endif %}>QBCC</option>
+                            <option value="AMEB" {% if project.pipeline == 'AMEB' %}selected{% endif %}>AMEB</option>
                         </select>
                     </form>
+                </td>
+                <td>
+                    {% if project.pipeline == 'QBCC' %}
+                    <form method="POST" action="{{ url_for('set_billing', project_id=project.id) }}" class="d-inline">
+                        <select name="billing_type" class="form-select form-select-sm bg-dark text-light border-secondary d-inline" style="width:90px" onchange="this.form.submit()">
+                            <option value="hourly" {% if project.billing_type == 'hourly' %}selected{% endif %}>Hourly</option>
+                            <option value="flat" {% if project.billing_type == 'flat' %}selected{% endif %}>Flat</option>
+                        </select>
+                    </form>
+                    {% if project.billing_type == 'flat' %}
+                    <form method="POST" action="{{ url_for('set_flat_amount', project_id=project.id) }}" class="d-inline row g-1 mt-1">
+                        <div class="col-auto">
+                            <span class="text-muted small">$</span>
+                            <input type="number" step="0.01" min="0" name="flat_amount" value="{{ project.flat_amount or '' }}" placeholder="amount" class="form-control form-control-sm bg-dark text-light border-secondary d-inline" style="width:110px">
+                        </div>
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Set</button>
+                        </div>
+                    </form>
+                    {% endif %}
+                    {% else %}
+                    <span class="text-muted small">—</span>
+                    {% endif %}
                 </td>
                 <td>
                     {% if project.active %}

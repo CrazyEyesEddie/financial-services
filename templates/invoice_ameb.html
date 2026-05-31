@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Invoice {{ invoice.invoice_number }}{% endblock %}
+{% block content %}
+
+<div class="card bg-dark border-light mb-4">
+    <div class="card-body">
+
+        <!-- Header -->
+        <div class="text-center mb-4 pb-3 border-bottom border-secondary">
+            <h3 class="mb-1">David Cashman</h3>
+            <p class="mb-1 text-muted"><small>Sole Trader</small></p>
+            {% if abn %}<p class="mb-0 small">ABN: {{ abn }}</p>{% endif %}
+            {% if address %}<p class="mb-0 small">{{ address }}</p>{% endif %}
+            {% if phone %}<p class="mb-0 small">Ph {{ phone }}</p>{% endif %}
+        </div>
+
+        <!-- Invoice Info -->
+        <div class="d-flex justify-content-between mb-4">
+            <div>
+                <p class="mb-1"><strong>To:</strong> {{ invoice.client_name or project.name }}</p>
+                <p class="mb-1"><strong>Date:</strong> {{ invoice.issue_date.strftime('%Y-%m-%d') }}</p>
+                <p class="mb-1"><strong>Invoice Number:</strong> {{ invoice.invoice_number }}</p>
+                <p class="mb-0"><strong>Status:</strong> <span class="badge bg-danger">{{ invoice.status }}</span></p>
+            </div>
+        </div>
+
+        <!-- Entries Table -->
+        <table class="table table-dark table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Timetable</th>
+                    <th class="text-end">Hours (@${{ "%.0f"|format(rate) }})</th>
+                    <th class="text-end">Rounded</th>
+                    <th class="text-end">Cost</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in entries %}
+                <tr>
+                    <td>{{ entry.date.strftime('%Y-%m-%d') }}</td>
+                    <td>{{ entry.timetable }}</td>
+                    <td class="text-end">{{ "%.2f"|format(entry.hours_worked) }}</td>
+                    <td class="text-end">{{ "%.2f"|format(entry.hours_rounded) }}</td>
+                    <td class="text-end">${{ "%.2f"|format(entry.hours_rounded * rate) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Total -->
+        <div class="text-end mt-3">
+            <span class="text-muted">TOTAL</span>
+            <span class="fs-3 fw-bold text-success ms-3">${{ "%.2f"|format(invoice.total) }}</span>
+        </div>
+
+        <!-- Notes -->
+        <div class="mt-4 pt-3 border-top border-secondary small text-muted">
+            <p class="mb-1"><em>Rounding: 0–9min→0, 10–24min→0.25, 25–39min→0.50, 40–54min→0.75, 55–60min→1.00</em></p>
+            {% if gst_note %}<p class="mb-1">{{ gst_note }}</p>{% endif %}
+        </div>
+
+        <!-- Payment Details -->
+        <div class="mt-4 pt-3 border-top border-secondary small">
+            <p class="mb-1"><strong>Payment to:</strong></p>
+            <p class="mb-0">BSB: {{ payment_bsb }} &nbsp; Account: {{ payment_account }}</p>
+            <p class="mb-0">Account Name: {{ payment_name }}</p>
+            {% if terms %}<p class="mb-0">{{ terms }}</p>{% endif %}
+        </div>
+
+        <!-- Thanks -->
+        <div class="text-center mt-4 pt-3 border-top border-secondary">
+            <p class="fw-bold mb-0">THANK YOU FOR YOUR BUSINESS</p>
+        </div>
+
+    </div>
+</div>
+
+<div class="d-flex gap-2 mb-5">
+    <button class="btn btn-outline-info" onclick="window.print()">🖨️ Print / PDF</button>
+    <a href="{{ url_for('outputs') }}" class="btn btn-outline-secondary">Back to Outputs</a>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<style>
+@media print {
+    .navbar, .d-flex.gap-2, .btn, .alert, .container > .card:first-of-type {
+        display: none !important;
+    }
+    .card {
+        border: none !important;
+        background: white !important;
+        color: black !important;
+    }
+    .table-dark {
+        background: white !important;
+        color: black !important;
+        --bs-table-bg: white !important;
+        --bs-table-color: black !important;
+    }
+    .text-muted { color: #666 !important; }
+    .text-success { color: #28a745 !important; }
+    body { background: white !important; }
+}
+</style>
+{% endblock %}

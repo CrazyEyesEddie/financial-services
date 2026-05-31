@@ -20,8 +20,16 @@ if "pipeline" not in cols:
     cursor.execute("ALTER TABLE project ADD COLUMN pipeline VARCHAR(20) NOT NULL DEFAULT 'ADB'")
     conn.commit()
     print("Added 'pipeline' column. Existing projects defaulted to ADB.")
-else:
-    print("'pipeline' column already exists.")
+
+if "billing_type" not in cols:
+    cursor.execute("ALTER TABLE project ADD COLUMN billing_type VARCHAR(10) NOT NULL DEFAULT 'hourly'")
+    conn.commit()
+    print("Added 'billing_type' column. Existing projects defaulted to hourly.")
+
+if "flat_amount" not in cols:
+    cursor.execute("ALTER TABLE project ADD COLUMN flat_amount FLOAT")
+    conn.commit()
+    print("Added 'flat_amount' column.")
 
 conn.close()
 print("Done.")

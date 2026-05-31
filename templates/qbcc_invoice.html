@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}QBCC Invoice{% endblock %}
 {% block content %}
-<h2 class="mb-4">QBCC — Hourly Invoice</h2>
+<h2 class="mb-4">QBCC — Invoice</h2>
 
 <!-- Selector -->
 <div class="card bg-dark border-secondary mb-4">
@@ -12,7 +12,7 @@
                 <select class="form-select bg-dark text-light border-secondary" id="project_id" name="project_id" required>
                     <option value="">— Select a QBCC project —</option>
                     {% for project in projects %}
-                    <option value="{{ project.id }}" {% if selected_project and project.id == selected_project.id %}selected{% endif %}>{{ project.name }}</option>
+                    <option value="{{ project.id }}" {% if selected_project and project.id == selected_project.id %}selected{% endif %}>{{ project.name }}{% if project.billing_type == 'flat' %} (flat){% endif %}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -35,7 +35,13 @@
 <div class="card bg-dark border-light">
     <div class="card-body p-0">
         <div class="p-3 border-bottom border-secondary">
-            <h4 class="mb-0">{{ selected_project.name }}</h4>
+            <h4 class="mb-0">{{ selected_project.name }}
+                {% if billing_type == 'flat' %}
+                <span class="badge bg-info">Flat Rate</span>
+                {% else %}
+                <span class="badge bg-secondary">Hourly</span>
+                {% endif %}
+            </h4>
             <small class="text-muted">{{ start.strftime('%b %d, %Y') }} – {{ end.strftime('%b %d, %Y') }}</small>
         </div>
         <table class="table table-dark table-hover mb-0">
@@ -44,7 +50,7 @@
                     <th>Date</th>
                     <th>Description</th>
                     <th class="text-end">Hours</th>
-                    <th class="text-end">Amount</th>
+                    <th class="text-end">{% if billing_type == 'flat' %}Ref. Amount{% else %}Amount{% endif %}</th>
                 </tr>
             </thead>
             <tbody>
@@ -63,14 +69,23 @@
         <div class="p-3 border-top border-secondary">
             <div class="row">
                 <div class="col-md-6">
+                    {% if billing_type == 'flat' %}
+                    <p class="text-muted mb-0 small">Flat rate — entries shown for reference</p>
+                    {% else %}
                     <p class="text-muted mb-0 small">Rate: <strong>${{ hourly_rate }}/hr</strong></p>
                     <p class="text-muted mb-0 small">No minimum billable unit — charged to exact time worked.</p>
+                    {% endif %}
                 </div>
                 <div class="col-md-6 text-end">
+                    {% if billing_type == 'flat' %}
+                    <span class="text-muted">Flat Amount: </span>
+                    <div class="fs-3 text-success fw-bold mt-1">${{ "%.2f"|format(flat_amount) }}</div>
+                    {% else %}
                     <span class="text-muted">Total Hours: </span>
                     <span class="fs-4 fw-bold">{{ "%.2f"|format(total_hours) }}</span>
                     <div class="text-muted small">({{ "%.6f"|format(total_hours) }} precise)</div>
                     <div class="fs-3 text-success fw-bold mt-1">${{ "%.2f"|format(total_hours * hourly_rate) }}</div>
+                    {% endif %}
                 </div>
             </div>
         </div>

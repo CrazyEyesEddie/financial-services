@@ -3,6 +3,111 @@
 {% block content %}
 <h2 class="mb-4">Settings</h2>
 
+<form method="POST">
+    <!-- Rates -->
+    <div class="card bg-dark border-secondary mb-3">
+        <div class="card-body">
+            <h5 class="card-title">Rates</h5>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">ADB (per day)</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-dark text-light border-secondary">$</span>
+                        <input type="number" step="0.01" class="form-control bg-dark text-light border-secondary" name="adb_rate" value="{{ settings.get('adb_rate', '600') }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">QBCC (per hour)</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-dark text-light border-secondary">$</span>
+                        <input type="number" step="0.01" class="form-control bg-dark text-light border-secondary" name="qbcc_rate" value="{{ settings.get('qbcc_rate', '350') }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">AMEB (per hour)</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-dark text-light border-secondary">$</span>
+                        <input type="number" step="0.01" class="form-control bg-dark text-light border-secondary" name="ameb_rate" value="{{ settings.get('ameb_rate', '91') }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contact Details -->
+    <div class="card bg-dark border-secondary mb-3">
+        <div class="card-body">
+            <h5 class="card-title">Contact Details</h5>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">ADB — ABN</label>
+                    <input type="text" class="form-control bg-dark text-light border-secondary" name="adb_abn" value="{{ settings.get('adb_abn', '') }}" placeholder="Leave blank">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">QBCC — ABN</label>
+                    <input type="text" class="form-control bg-dark text-light border-secondary" name="qbcc_abn" value="{{ settings.get('qbcc_abn', '') }}" placeholder="Leave blank">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">AMEB — ABN</label>
+                    <input type="text" class="form-control bg-dark text-light border-secondary" name="ameb_abn" value="{{ settings.get('ameb_abn', '') }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Phone (ADB / QBCC — for Dalma)</label>
+                    <input type="text" class="form-control bg-dark text-light border-secondary" name="adb_phone" value="{{ settings.get('adb_phone', '0451 679 010') }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Phone (AMEB — for David)</label>
+                    <input type="text" class="form-control bg-dark text-light border-secondary" name="ameb_phone" value="{{ settings.get('ameb_phone', '0431 828 088') }}">
+                </div>
+                <div class="col-12">
+                    <label class="form-label">AMEB — Address</label>
+                    <input type="text" class="form-control bg-dark text-light border-secondary" name="ameb_address" value="{{ settings.get('ameb_address', '181 Phegans Bay Road, Phegans Bay NSW 2256') }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">AMEB — Client Name</label>
+                    <input type="text" class="form-control bg-dark text-light border-secondary" name="ameb_client" value="{{ settings.get('ameb_client', 'Australian Music Examinations Board, NSW') }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">AMEB — Send To</label>
+                    <input type="text" class="form-control bg-dark text-light border-secondary" name="ameb_send_to" value="{{ settings.get('ameb_send_to', '') }}">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Details -->
+    <div class="card bg-dark border-secondary mb-3">
+        <div class="card-body">
+            <h5 class="card-title">Payment Details (applies to all invoices)</h5>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">BSB</label>
+                    <input type="text" class="form-control bg-dark text-light border-secondary" name="payment_bsb" value="{{ settings.get('payment_bsb', '063 097') }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Account Number</label>
+                    <input type="text" class="form-control bg-dark text-light border-secondary" name="payment_account" value="{{ settings.get('payment_account', '4274 6923') }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Account Name</label>
+                    <input type="text" class="form-control bg-dark text-light border-secondary" name="payment_name" value="{{ settings.get('payment_name', 'David Cashman and Dalma Demeter') }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Payment Terms</label>
+                    <input type="text" class="form-control bg-dark text-light border-secondary" name="payment_terms" value="{{ settings.get('payment_terms', 'Payment due within 30 days.') }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">GST Note</label>
+                    <input type="text" class="form-control bg-dark text-light border-secondary" name="gst_note" value="{{ settings.get('gst_note', 'GST is not applied to this invoice.') }}">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary mb-4">Save All Settings</button>
+</form>
+
+<!-- Password Change -->
 <div class="card bg-dark border-secondary">
     <div class="card-body">
         <h5 class="card-title">Change Password</h5>

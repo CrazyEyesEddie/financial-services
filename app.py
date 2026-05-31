@@ -1,4 +1,4 @@
-"""Dalma Hour Tracker — Flask Application."""
+"""Dalma & David Financial Services — Flask Application."""
 
 import csv
 import io
@@ -18,7 +18,7 @@ from flask import (
 )
 
 from config import Config
-from models import db, User, Project, TimeEntry
+from models import db, User, Project, TimeEntry, Setting, AmebEntry, Invoice, InvoiceCounter
 
 # ---------------------------------------------------------------------------
 # Rounding
@@ -39,6 +39,32 @@ def round_quarter_day(total_hours: float) -> float:
     return 1.0
 
 
+def round_ameb_minutes(hours_worked: float) -> float:
+    """Round AMEB hours to quarter-hour based on minute thresholds.
+    0-9 min → 0, 10-24 → 0.25, 25-39 → 0.50, 40-54 → 0.75, 55-60 → 1.00
+    """
+    total_minutes = hours_worked * 60
+    whole_hours = int(total_minutes // 60)
+    remainder_min = total_minutes % 60
+
+    if remainder_min < 10:
+        return whole_hours + 0.0
+    elif remainder_min < 25:
+        return whole_hours + 0.25
+    elif remainder_min < 40:
+        return whole_hours + 0.50
+    elif remainder_min < 55:
+        return whole_hours + 0.75
+    else:
+        return whole_hours + 1.0
+
+
+def get_setting(key, default=""):
+    """Fetch a setting value from the DB."""
+    s = Setting.query.filter_by(key=key).first()
+    return s.value if s else default
+
+
 # ---------------------------------------------------------------------------
 # App factory
 # ---------------------------------------------------------------------------
@@ -48,6 +74,12 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     db.init_app(app)
+
+    @app.context_processor
+    def inject_settings():
+        """Make get_setting available in templates."""
+        return dict(get_setting=get_setting)
+
     return app
 
 
@@ -84,7 +116,7 @@ def login():
         if user and bcrypt.checkpw(password.encode(), user.password_hash.encode()):
             session["logged_in"] = True
             flash("Welcome back!", "success")
-            return redirect(url_for("dashboard"))
+            return redirect(url_for("track"))
         flash("Invalid password", "danger")
     return render_template("login.html")
 
@@ -104,6 +136,18 @@ def logout():
 @app.route("/")
 @login_required
 def dashboard():
+    return redirect(url_for("track"))
+
+
+@app.route("/dashboard")
+@login_required
+def dashboard_old():
+    return redirect(url_for("track"))
+
+
+@app.route("/dashboard-old")
+@login_required
+def dashboard_full():
     today = date.today()
     entries = (
         TimeEntry.query.filter(TimeEntry.date == today)
@@ -306,7 +350,7 @@ def edit_project(project_id):
 def set_pipeline(project_id):
     project = Project.query.get_or_404(project_id)
     pipeline = request.form.get("pipeline", "ADB")
-    if pipeline in ("ADB", "QBCC"):
+    if pipeline in ("ADB", "QBCC", "AMEB"):
         project.pipeline = pipeline
         db.session.commit()
         flash(f"Project moved to {pipeline}", "info")
@@ -321,6 +365,33 @@ def toggle_project(project_id):
     db.session.commit()
     status = "active" if project.active else "inactive"
     flash(f"Project set to {status}", "info")
+    return redirect(request.referrer or url_for("projects"))
+
+
+@app.route("/projects/billing/<int:project_id>", methods=["POST"])
+@login_required
+def set_billing(project_id):
+    project = Project.query.get_or_404(project_id)
+    billing = request.form.get("billing_type", "hourly")
+    if billing in ("hourly", "flat"):
+        project.billing_type = billing
+        db.session.commit()
+        flash(f"Billing set to {billing}", "info")
+    return redirect(request.referrer or url_for("projects"))
+
+
+@app.route("/projects/flat-amount/<int:project_id>", methods=["POST"])
+@login_required
+def set_flat_amount(project_id):
+    project = Project.query.get_or_404(project_id)
+    try:
+        amount = float(request.form.get("flat_amount", 0))
+        if amount >= 0:
+            project.flat_amount = amount
+            db.session.commit()
+            flash(f"Flat amount set to ${amount:.2f}", "info")
+    except (ValueError, TypeError):
+        flash("Invalid amount", "danger")
     return redirect(request.referrer or url_for("projects"))
 
 
@@ -557,19 +628,25 @@ def invoice():
 def outputs():
     if request.method == "POST":
         project_id = request.form.get("project_id")
-        start = request.form.get("start")
-        end = request.form.get("end")
         project = Project.query.get(project_id)
         if not project:
             flash("Select a project", "warning")
             return redirect(url_for("outputs"))
         if project.pipeline == "ADB":
             return redirect(
-                url_for("adb_report", project_id=project_id, start=start, end=end)
+                url_for("adb_report", project_id=project_id,
+                        start=request.form.get("start"),
+                        end=request.form.get("end"))
+            )
+        elif project.pipeline == "AMEB":
+            return redirect(
+                url_for("ameb_invoice", project_id=project_id)
             )
         else:
             return redirect(
-                url_for("qbcc_invoice", project_id=project_id, start=start, end=end)
+                url_for("qbcc_invoice", project_id=project_id,
+                        start=request.form.get("start"),
+                        end=request.form.get("end"))
             )
 
     projects = Project.query.filter_by(active=True).order_by(Project.name).all()
@@ -627,6 +704,8 @@ def qbcc_invoice():
         selected_project=selected_project,
         entries=entries,
         total_hours=total_hours,
+        billing_type=selected_project.billing_type if selected_project else "hourly",
+        flat_amount=selected_project.flat_amount if selected_project else None,
         hourly_rate=350,
         start=start,
         end=end,
@@ -725,6 +804,134 @@ def adb_report():
 
 
 # ---------------------------------------------------------------------------
+# Routes – AMEB Invoice (manual entry)
+# ---------------------------------------------------------------------------
+
+
+@app.route("/ameb-invoice", methods=["GET", "POST"])
+@login_required
+def ameb_invoice():
+    project_id = request.args.get("project_id", type=int)
+    selected_project = Project.query.get(project_id) if project_id else None
+    projects = (
+        Project.query.filter_by(pipeline="AMEB", active=True)
+        .order_by(Project.name)
+        .all()
+    )
+
+    if request.method == "POST" and selected_project:
+        names = request.form.getlist("ameb_name[]")
+        dates = request.form.getlist("ameb_date[]")
+        timetables = request.form.getlist("ameb_timetable[]")
+        hours_list = request.form.getlist("ameb_hours[]")
+
+        rate = float(get_setting("ameb_rate", "91"))
+
+        rows = []
+        total_rounded = 0.0
+        for name, dt, tt, hrs in zip(names, dates, timetables, hours_list):
+            try:
+                hours_val = float(hrs)
+                rounded = round_ameb_minutes(hours_val)
+                rows.append({
+                    "name": name,
+                    "date": dt,
+                    "timetable": tt,
+                    "hours_worked": hours_val,
+                    "hours_rounded": rounded,
+                    "cost": rounded * rate,
+                })
+                total_rounded += rounded
+            except (ValueError, TypeError):
+                continue
+
+        total_cost = total_rounded * rate
+
+        # Generate invoice number
+        counter = InvoiceCounter.query.get(1)
+        if not counter:
+            counter = InvoiceCounter(id=1, next_number=1)
+            db.session.add(counter)
+        year = date.today().year % 100
+        invoice_number = f"{year}/{counter.next_number:02d}"
+        counter.next_number += 1
+
+        # Save invoice
+        inv = Invoice(
+            invoice_number=invoice_number,
+            project_id=selected_project.id,
+            issue_date=date.today(),
+            client_name=get_setting("ameb_client", ""),
+            total=total_cost,
+        )
+        db.session.add(inv)
+        db.session.flush()
+
+        # Save AMEB entries
+        for r in rows:
+            entry = AmebEntry(
+                date=date.fromisoformat(r["date"]) if r["date"] else date.today(),
+                timetable=r["timetable"],
+                hours_worked=r["hours_worked"],
+                hours_rounded=r["hours_rounded"],
+                project_id=selected_project.id,
+                invoice_id=inv.id,
+            )
+            db.session.add(entry)
+
+        db.session.commit()
+
+        return redirect(url_for("view_invoice", invoice_id=inv.id))
+
+    return render_template("ameb_invoice.html", projects=projects, selected_project=selected_project)
+
+
+# ---------------------------------------------------------------------------
+# Routes – View Invoice
+# ---------------------------------------------------------------------------
+
+
+@app.route("/invoice/<int:invoice_id>")
+@login_required
+def view_invoice(invoice_id):
+    inv = Invoice.query.get_or_404(invoice_id)
+    proj = inv.project
+    rate_key = f"{proj.pipeline.lower()}_rate"
+
+    rate = float(get_setting(rate_key, "0"))
+    abn = get_setting(f"{proj.pipeline.lower()}_abn", "")
+    phone = get_setting(f"{proj.pipeline.lower()}_phone", "")
+    address = get_setting(f"{proj.pipeline.lower()}_address", "")
+    payment_bsb = get_setting("payment_bsb", "063 097")
+    payment_account = get_setting("payment_account", "")
+    payment_name = get_setting("payment_name", "")
+    terms = get_setting("payment_terms", "Payment due within 30 days.")
+    gst_note = get_setting("gst_note", "")
+
+    if proj.pipeline == "AMEB":
+        entries = AmebEntry.query.filter_by(invoice_id=inv.id).order_by(AmebEntry.date).all()
+        return render_template("invoice_ameb.html",
+            invoice=inv, project=proj, entries=entries,
+            rate=rate, abn=abn, phone=phone, address=address,
+            payment_bsb=payment_bsb, payment_account=payment_account,
+            payment_name=payment_name, terms=terms, gst_note=gst_note,
+        )
+
+    # QBCC/ADB — show time entries
+    from collections import defaultdict
+    time_entries = TimeEntry.query.filter(
+        TimeEntry.project_id == proj.id,
+        TimeEntry.end_time.isnot(None),
+    ).order_by(TimeEntry.date).all()
+    return render_template("invoice_generic.html",
+        invoice=inv, project=proj, entries=time_entries,
+        rate=rate, abn=abn, phone=phone, address=address,
+        payment_bsb=payment_bsb, payment_account=payment_account,
+        payment_name=payment_name, terms=terms, gst_note=gst_note,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Routes – Settings
 # ---------------------------------------------------------------------------
 
@@ -733,6 +940,26 @@ def adb_report():
 @login_required
 def settings():
     if request.method == "POST":
+        # Save rate/payment settings
+        rate_keys = [
+            "adb_rate", "qbcc_rate", "ameb_rate",
+            "adb_abn", "qbcc_abn", "ameb_abn",
+            "adb_phone", "qbcc_phone", "ameb_phone",
+            "adb_address", "qbcc_address", "ameb_address",
+            "payment_bsb", "payment_account", "payment_name",
+            "payment_terms", "gst_note", "ameb_client", "ameb_send_to",
+        ]
+        for key in rate_keys:
+            val = request.form.get(key, "")
+            s = Setting.query.filter_by(key=key).first()
+            if s:
+                s.value = val
+            else:
+                db.session.add(Setting(key=key, value=val))
+        db.session.commit()
+        flash("Settings saved", "success")
+
+        # Password change
         current = request.form.get("current_password", "")
         new_password = request.form.get("new_password", "")
         confirm = request.form.get("confirm_password", "")
@@ -752,7 +979,9 @@ def settings():
             flash("Password changed successfully", "success")
             return redirect(url_for("dashboard"))
 
-    return render_template("settings.html")
+    # Load all settings for the template
+    all_settings = {s.key: s.value for s in Setting.query.all()}
+    return render_template("settings.html", settings=all_settings)
 
 
 # ---------------------------------------------------------------------------
