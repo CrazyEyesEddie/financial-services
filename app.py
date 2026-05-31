@@ -820,31 +820,18 @@ def ameb_invoice():
     )
 
     if request.method == "POST" and selected_project:
-        names = request.form.getlist("ameb_name[]")
-        dates = request.form.getlist("ameb_date[]")
-        timetables = request.form.getlist("ameb_timetable[]")
-        hours_list = request.form.getlist("ameb_hours[]")
+        # Collect un-invoiced entries for this project
+        entries = AmebEntry.query.filter(
+            AmebEntry.project_id == selected_project.id,
+            AmebEntry.invoice_id.is_(None),
+        ).order_by(AmebEntry.date).all()
+
+        if not entries:
+            flash("No timetable entries found. Add them in Settings first.", "warning")
+            return redirect(url_for("ameb_invoice", project_id=project_id))
 
         rate = float(get_setting("ameb_rate", "91"))
-
-        rows = []
-        total_rounded = 0.0
-        for name, dt, tt, hrs in zip(names, dates, timetables, hours_list):
-            try:
-                hours_val = float(hrs)
-                rounded = round_ameb_minutes(hours_val)
-                rows.append({
-                    "name": name,
-                    "date": dt,
-                    "timetable": tt,
-                    "hours_worked": hours_val,
-                    "hours_rounded": rounded,
-                    "cost": rounded * rate,
-                })
-                total_rounded += rounded
-            except (ValueError, TypeError):
-                continue
-
+        total_rounded = sum(e.hours_rounded for e in entries)
         total_cost = total_rounded * rate
 
         # Generate invoice number
@@ -856,7 +843,6 @@ def ameb_invoice():
         invoice_number = f"{year}/{counter.next_number:02d}"
         counter.next_number += 1
 
-        # Save invoice
         inv = Invoice(
             invoice_number=invoice_number,
             project_id=selected_project.id,
@@ -867,17 +853,9 @@ def ameb_invoice():
         db.session.add(inv)
         db.session.flush()
 
-        # Save AMEB entries
-        for r in rows:
-            entry = AmebEntry(
-                date=date.fromisoformat(r["date"]) if r["date"] else date.today(),
-                timetable=r["timetable"],
-                hours_worked=r["hours_worked"],
-                hours_rounded=r["hours_rounded"],
-                project_id=selected_project.id,
-                invoice_id=inv.id,
-            )
-            db.session.add(entry)
+        # Link entries to invoice
+        for e in entries:
+            e.invoice_id = inv.id
 
         db.session.commit()
 
@@ -932,6 +910,60 @@ def view_invoice(invoice_id):
 
 
 # ---------------------------------------------------------------------------
+# Routes – AMEB entry management (in Settings)
+# ---------------------------------------------------------------------------
+
+
+@app.route("/ameb-entry/add", methods=["POST"])
+@login_required
+def ameb_add_entry():
+    entry_date = request.form.get("entry_date")
+    timetable = request.form.get("entry_timetable", "").strip()
+    hours_str = request.form.get("entry_hours", "0")
+    project_id = request.args.get("project_id")
+
+    if not project_id:
+        # Use the first active AMEB project
+        proj = Project.query.filter_by(pipeline="AMEB", active=True).first()
+        if proj:
+            project_id = proj.id
+        else:
+            flash("Create an AMEB project first", "warning")
+            return redirect(url_for("settings"))
+
+    try:
+        hours_val = float(hours_str)
+        rounded = round_ameb_minutes(hours_val)
+        entry = AmebEntry(
+            date=date.fromisoformat(entry_date) if entry_date else date.today(),
+            timetable=timetable,
+            hours_worked=hours_val,
+            hours_rounded=rounded,
+            project_id=int(project_id),
+        )
+        db.session.add(entry)
+        db.session.commit()
+        flash(f"Added {timetable}: {hours_val}h → {rounded:.2f}h rounded", "success")
+    except (ValueError, TypeError):
+        flash("Invalid hours value", "danger")
+
+    return redirect(url_for("settings"))
+
+
+@app.route("/ameb-entry/delete/<int:entry_id>", methods=["POST"])
+@login_required
+def ameb_delete_entry(entry_id):
+    entry = AmebEntry.query.get_or_404(entry_id)
+    if entry.invoice_id:
+        flash("Cannot delete — already invoiced", "danger")
+    else:
+        db.session.delete(entry)
+        db.session.commit()
+        flash("Entry deleted", "info")
+    return redirect(url_for("settings"))
+
+
+# ---------------------------------------------------------------------------
 # Routes – Settings
 # ---------------------------------------------------------------------------
 
@@ -981,7 +1013,10 @@ def settings():
 
     # Load all settings for the template
     all_settings = {s.key: s.value for s in Setting.query.all()}
-    return render_template("settings.html", settings=all_settings)
+    ameb_entries = AmebEntry.query.filter(
+        AmebEntry.invoice_id.is_(None)
+    ).order_by(AmebEntry.date.desc()).all()
+    return render_template("settings.html", settings=all_settings, ameb_entries=ameb_entries)
 
 
 # ---------------------------------------------------------------------------
