@@ -1044,4 +1044,4 @@ def settings():
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=app.config.get("PORT", 7246), debug=True, use_reloader=False)
+    app.run(host="0.0.0.0", port=app.config.get("PORT", 7246))
