@@ -107,62 +107,6 @@
     <button type="submit" class="btn btn-primary mb-4">Save All Settings</button>
 </form>
 
-<!-- AMEB Timetable Entry -->
-<div class="card bg-dark border-secondary mb-3">
-    <div class="card-body">
-        <h5 class="card-title">AMEB — Timetable Entry</h5>
-        <p class="text-muted small mb-3">Add timetable rows here. When ready, go to <strong>3. Output</strong> → pick the AMEB project → Generate Invoice.</p>
-        <form method="POST" action="{{ url_for('ameb_add_entry') }}" class="row g-2 align-items-end mb-3">
-            <div class="col-md-3">
-                <label class="form-label small">Date</label>
-                <input type="date" name="entry_date" class="form-control form-control-sm bg-dark text-light border-secondary" required>
-            </div>
-            <div class="col-md-4">
-                <label class="form-label small">Timetable No.</label>
-                <input type="text" name="entry_timetable" class="form-control form-control-sm bg-dark text-light border-secondary" placeholder="e.g. TT1355" required>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label small">Hours Worked</label>
-                <input type="number" step="0.01" min="0" name="entry_hours" class="form-control form-control-sm bg-dark text-light border-secondary" placeholder="e.g. 5.15" required>
-            </div>
-            <div class="col-md-2">
-                <button type="submit" class="btn btn-sm btn-primary w-100">Add</button>
-            </div>
-        </form>
-
-        {% if ameb_entries %}
-        <table class="table table-dark table-sm">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Timetable</th>
-                    <th>Hours</th>
-                    <th>Rounded</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for e in ameb_entries %}
-                <tr>
-                    <td>{{ e.date.strftime('%Y-%m-%d') }}</td>
-                    <td>{{ e.timetable }}</td>
-                    <td>{{ "%.2f"|format(e.hours_worked) }}</td>
-                    <td>{{ "%.2f"|format(e.hours_rounded) }}</td>
-                    <td>
-                        <form method="POST" action="{{ url_for('ameb_delete_entry', entry_id=e.id) }}" class="d-inline">
-                            <button type="submit" class="btn btn-sm btn-outline-danger">&times;</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p class="text-muted small mb-0">No entries yet. Add one above.</p>
-        {% endif %}
-    </div>
-</div>
-
 <!-- Password Change -->
 <div class="card bg-dark border-secondary">
     <div class="card-body">

@@ -210,7 +210,13 @@ def dashboard_add_entry():
 def track():
     projects = Project.query.filter_by(active=True).order_by(Project.name).all()
     running = TimeEntry.query.filter_by(end_time=None).first()
-    return render_template("track.html", projects=projects, running=running)
+    selected_id = request.args.get("project", type=int)
+    selected_project = Project.query.get(selected_id) if selected_id else None
+    ameb_entries = AmebEntry.query.filter(
+        AmebEntry.invoice_id.is_(None)
+    ).order_by(AmebEntry.date.desc()).all()
+    return render_template("track.html", projects=projects, running=running,
+                           selected_project=selected_project, ameb_entries=ameb_entries)
 
 
 @app.route("/track/start", methods=["POST"])
@@ -920,16 +926,15 @@ def ameb_add_entry():
     entry_date = request.form.get("entry_date")
     timetable = request.form.get("entry_timetable", "").strip()
     hours_str = request.form.get("entry_hours", "0")
-    project_id = request.args.get("project_id")
+    project_id = request.form.get("project_id") or request.args.get("project_id")
 
     if not project_id:
-        # Use the first active AMEB project
         proj = Project.query.filter_by(pipeline="AMEB", active=True).first()
         if proj:
             project_id = proj.id
         else:
             flash("Create an AMEB project first", "warning")
-            return redirect(url_for("settings"))
+            return redirect(url_for("track"))
 
     try:
         hours_val = float(hours_str)
@@ -947,7 +952,7 @@ def ameb_add_entry():
     except (ValueError, TypeError):
         flash("Invalid hours value", "danger")
 
-    return redirect(url_for("settings"))
+    return redirect(url_for("track", project=project_id))
 
 
 @app.route("/ameb-entry/delete/<int:entry_id>", methods=["POST"])
@@ -960,7 +965,7 @@ def ameb_delete_entry(entry_id):
         db.session.delete(entry)
         db.session.commit()
         flash("Entry deleted", "info")
-    return redirect(url_for("settings"))
+    return redirect(url_for("track"))
 
 
 # ---------------------------------------------------------------------------
@@ -1013,10 +1018,7 @@ def settings():
 
     # Load all settings for the template
     all_settings = {s.key: s.value for s in Setting.query.all()}
-    ameb_entries = AmebEntry.query.filter(
-        AmebEntry.invoice_id.is_(None)
-    ).order_by(AmebEntry.date.desc()).all()
-    return render_template("settings.html", settings=all_settings, ameb_entries=ameb_entries)
+    return render_template("settings.html", settings=all_settings)
 
 
 # ---------------------------------------------------------------------------
