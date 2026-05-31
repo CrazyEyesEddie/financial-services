@@ -1,6 +1,6 @@
-# Dalma Hour Tracker
+# Financial Services — Hour Tracker
 
-A simple Flask app for tracking billable hours. Built for Dalma at the Asian Development Bank.
+A Flask app for tracking billable hours, originally built for Dalma at the Asian Development Bank.
 
 ## Quick Start
 
@@ -60,6 +60,12 @@ Future feature: per-project invoice generation (PDF).
 - **Bootstrap 5** (Dark mode UI)
 - **bcrypt** (password hashing)
 
-## Docker (future)
+## Docker
 
-The app will be moved to `../dockers/dalma-tracker/` with a Dockerfile. For now, run directly with `python app.py`.
+The app lives under `~/docker/financial-services/`. A Dockerfile is planned — for now, run directly:
+
+```bash
+pip install -r requirements.txt
+python init_db.py <your-password>
+python app.py
+```
