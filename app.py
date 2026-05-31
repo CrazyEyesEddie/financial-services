@@ -83,6 +83,14 @@ def get_setting(key, default=""):
     return s.value if s else default
 
 
+def financial_year(d=None):
+    """Return the financial year code (e.g. 25 for FY 2025/2026)."""
+    from datetime import date as dt_date
+    d = d or dt_date.today()
+    fy = d.year - 1 if d.month < 7 else d.year
+    return fy % 100
+
+
 # ---------------------------------------------------------------------------
 # App factory
 # ---------------------------------------------------------------------------
@@ -865,13 +873,17 @@ def ameb_invoice():
         total_cost = total_rounded * rate
 
         # Generate invoice number
-        counter = InvoiceCounter.query.get(1)
-        if not counter:
-            counter = InvoiceCounter(id=1, next_number=1)
-            db.session.add(counter)
-        year = date.today().year % 100
-        invoice_number = f"{year}/{counter.next_number:02d}"
-        counter.next_number += 1
+        fy = financial_year()
+        # Reset counter if the FY changed
+        counter_str = get_setting(f"invoice_fy_{fy}", "")
+        next_num = int(counter_str) if counter_str else 1
+        invoice_number = f"{fy}{next_num:02d}"
+        # Save counter
+        s = Setting.query.filter_by(key=f"invoice_fy_{fy}").first()
+        if s:
+            s.value = str(next_num + 1)
+        else:
+            db.session.add(Setting(key=f"invoice_fy_{fy}", value=str(next_num + 1)))
 
         inv = Invoice(
             invoice_number=invoice_number,
