@@ -39,6 +39,24 @@ def round_quarter_day(total_hours: float) -> float:
     return 1.0
 
 
+def parse_hours_input(raw: str) -> float:
+    """Parse hours:minutes or decimal input into decimal hours."""
+    raw = raw.strip()
+    if ":" in raw:
+        parts = raw.split(":")
+        h = float(parts[0])
+        m = float(parts[1]) if len(parts) > 1 else 0
+        return h + m / 60
+    if "h" in raw.lower():
+        import re
+        m = re.match(r"([\d.]+)\s*h\s*(?:(\d+)\s*m)?", raw, re.IGNORECASE)
+        if m:
+            h = float(m.group(1))
+            mins = float(m.group(2)) if m.group(2) else 0
+            return h + mins / 60
+    return float(raw)
+
+
 def round_ameb_minutes(hours_worked: float) -> float:
     """Round AMEB hours to quarter-hour based on minute thresholds.
     0-9 min → 0, 10-24 → 0.25, 25-39 → 0.50, 40-54 → 0.75, 55-60 → 1.00
@@ -937,7 +955,7 @@ def ameb_add_entry():
             return redirect(url_for("track"))
 
     try:
-        hours_val = float(hours_str)
+        hours_val = parse_hours_input(hours_str)
         rounded = round_ameb_minutes(hours_val)
         entry = AmebEntry(
             date=date.fromisoformat(entry_date) if entry_date else date.today(),
