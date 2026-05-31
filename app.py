@@ -857,7 +857,7 @@ def ameb_invoice():
         ).order_by(AmebEntry.date).all()
 
         if not entries:
-            flash("No timetable entries found. Add them in Settings first.", "warning")
+            flash("No un-invoiced timetable entries. Add new entries on Track/Input first, then generate the invoice.", "warning")
             return redirect(url_for("ameb_invoice", project_id=project_id))
 
         rate = float(get_setting("ameb_rate", "91"))

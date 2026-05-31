@@ -22,9 +22,9 @@
 {% if selected_project %}
 <div class="card bg-dark border-secondary">
     <div class="card-body">
-        <p class="text-muted mb-3">Enter timetable entries in <strong>Settings</strong> → AMEB Timetable Entry, then come here to generate the invoice.</p>
+        <p class="text-muted mb-3">Add entries in <strong>2. Track / Input</strong> → select the AMEB project → fill in the timetable rows. Then come here and click Generate Invoice.</p>
         <div class="d-flex gap-2">
-            <a href="{{ url_for('settings') }}" class="btn btn-primary">Go to Settings</a>
+            <a href="{{ url_for('track', project=selected_project.id) }}" class="btn btn-primary">Go to Track / Input</a>
             <form method="POST" action="{{ url_for('ameb_invoice', project_id=selected_project.id) }}">
                 <button type="submit" class="btn btn-success">Generate Invoice</button>
             </form>
